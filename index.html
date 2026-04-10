@@ -78,10 +78,16 @@
 
     .mood-grid { 
       display: grid; 
-      grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 10px; 
       margin-top: 10px; 
       width: 100%; 
+    }
+
+    @media (min-width: 500px) {
+      .mood-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
     }
 
     .emoji-btn {
@@ -99,7 +105,9 @@
       border-radius: 16px; 
       background: white; 
       box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
-      font-size: 28px; 
+      font-size: 12px;
+      text-align: center;
+      word-break: break-word; 
     }
 
     .emoji-btn:hover { transform: scale(1.2); }
