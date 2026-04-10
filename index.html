@@ -12,11 +12,6 @@
 
   <style>
     :root {
-      --bg: #f6f7fb;
-      --card: #ffffff;
-      --primary: #111827;
-      --accent: #6366f1;
-      --accent-soft: #e0e7ff;
       --success: #22c55e;
     }
 
@@ -81,9 +76,30 @@
       box-shadow: 0 4px 10px rgba(34,197,94,0.3);
     }
 
+    .mood-grid { 
+      display: grid; 
+      grid-template-columns: repeat(4, 1fr); 
+      gap: 10px; 
+      margin-top: 10px; 
+      width: 100%; 
+    }
+
     .emoji-btn {
       font-size: 34px;
       background: transparent;
+    }
+
+    .emoji-btn { 
+      width: 100%; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      padding: 14px 10px; 
+      border-radius: 16px; 
+      background: white; 
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+      font-size: 28px; 
     }
 
     .emoji-btn:hover { transform: scale(1.2); }
@@ -149,8 +165,24 @@
   }
 
   #dayModal.show {
-  display: flex;
-}
+    display: flex;
+  }
+
+  .cheat-day { 
+    background: #60a5fa !important; /* niebieski */ 
+    color: white; 
+    font-weight: bold; 
+  } 
+  
+  .cheat-btn {
+    background: linear-gradient(135deg, #60a5fa, #6366f1); 
+    color: white; 
+  } 
+  
+  .cheat-btn span { 
+    opacity: 0.9; 
+    color: white; 
+  }
 
   </style>
 </head>
@@ -171,11 +203,29 @@
       <h1>🔥 Streak: <span id="streak">0</span> </h1>
     </div>
 
-    <div class="card" id="energy-screen">
-      <h2>Jak się dziś czujesz?</h2>
-      <button class="emoji-btn" onclick="selectEnergy('low')">😴</button>
-      <button class="emoji-btn" onclick="selectEnergy('medium')">🙂</button>
-      <button class="emoji-btn" onclick="selectEnergy('high')">🔥</button>
+    <div class="card" id="energy-screen"> 
+      <h2>Jak się dziś czujesz?</h2> 
+      <div class="mood-grid"> 
+        <button class="emoji-btn cheat-btn" onclick="useCheatDay()"> 
+          😈 <br> 
+          <span>cheat</span> 
+        </button> 
+        
+        <button class="emoji-btn" onclick="selectEnergy('low')"> 
+          😴 <br> 
+          <span>low</span> 
+        </button> 
+        
+        <button class="emoji-btn" onclick="selectEnergy('medium')"> 
+          🙂 <br> 
+          <span>mid</span> 
+        </button> 
+        
+        <button class="emoji-btn" onclick="selectEnergy('high')"> 
+          🔥 <br> 
+          <span>high</span>
+        </button> 
+      </div> 
     </div>
 
     <div class="card hidden" id="activities-screen">
@@ -252,8 +302,16 @@ function formatDatePL(dateStr) {
 }
 
 let streak = Number(localStorage.getItem("streak") || 0);
-let lastDate = localStorage.getItem("lastDate");
-let logs = JSON.parse(localStorage.getItem("logs") || "[]");
+
+function safeParse(key) { 
+  try { return JSON.parse(localStorage.getItem(key)) || []; 
+  } catch { 
+    return []; 
+  } 
+}
+
+let logs = safeParse("logs");
+let cheatDays = safeParse("cheatDays");
 
 let currentEnergy = null;
 let selectedActivity = null;
@@ -262,7 +320,7 @@ let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 
 const streakEl = document.getElementById("streak");
-streakEl.innerText = streak;
+if (streakEl) streakEl.innerText = streak;
 
 const activitiesData = {
   low: ["15 minutowy spacer z Tokajkiem", "Joga w domku", "3 tańce z Monią", "Zabawy na basenie", "Krótki Nordic walking", "4 partie wchodzenia i schodzenia po naszych schodach"],
@@ -273,6 +331,11 @@ const activitiesData = {
 // 🔧 SYNC z localStorage
 function syncLogs() {
   logs = JSON.parse(localStorage.getItem("logs") || "[]");
+}
+
+function hasActivityToday() { 
+  const today = new Date().toDateString(); 
+  return logs.some(l => l.date === today && l.entries.length > 0); 
 }
 
 function selectEnergy(level) {
@@ -322,11 +385,16 @@ function goBack() {
 function completeDay() {
   const calories = document.getElementById("caloriesInput").value;
   const today = new Date().toDateString();
-  const savedLastDate = localStorage.getItem("lastDate");
 
-  if (!selectedActivity) {
-    alert("Wybierz aktywność 💡");
-    return;
+  // 🔥 jeśli był cheat → usuń go 
+  if (cheatDays.includes(today)) { 
+    cheatDays = cheatDays.filter(d => d !== today); 
+    localStorage.setItem("cheatDays", JSON.stringify(cheatDays)); 
+  } 
+  
+  if (!selectedActivity) { 
+    alert("Wybierz aktywność 💡"); 
+    return; 
   }
 
   // 🔥 ZAWSZE zapisuj aktywność (historia)
@@ -348,13 +416,7 @@ function completeDay() {
 
   localStorage.setItem("logs", JSON.stringify(logs));
 
-  // 🔥 STREAK TYLKO RAZ DZIENNIE
-  if (savedLastDate !== today) {
-    streak++;
-    localStorage.setItem("streak", streak);
-    localStorage.setItem("lastDate", today);
-    streakEl.innerText = streak;
-  }
+  updateStreakUI();
 
   alert("🔥 Zapisane do historii!");
 
@@ -369,6 +431,7 @@ function completeDay() {
   syncLogs();
   renderHistoryList();
   renderCalendar();
+  updateCheatButton();
 }
 
 function goHome() {
@@ -435,35 +498,45 @@ function renderCalendar() {
 
     const dateKey = new Date(currentYear, currentMonth, day).toDateString();
     const dayLog = logs.find(l => l.date === dateKey);
-
-    if (dayLog && dayLog.entries.length > 0) {
-
-      const entry = dayLog.entries[0];
-
-      const emojis = dayLog.entries.map(entry => {
-        return entry.energy === "low" ? "😴" :
-              entry.energy === "medium" ? "🙂" : "🔥";
-      }).join(" ");
+    const isCheat = cheatDays.includes(dateKey); 
+    
+    if ((dayLog && dayLog.entries.length > 0) || isCheat) { 
+      let emojis = ""; 
+      if (isCheat && (!dayLog || dayLog.entries.length === 0)) {  
+        // tylko cheat day 
+        emojis = "😈"; 
+      } else if (dayLog && dayLog.entries.length > 0) { 
+        // normalne aktywności 
+        emojis = dayLog.entries.map(entry => { 
+          return entry.energy === "low" ? "😴" : 
+          entry.energy === "medium" ? "🙂" : "🔥"; 
+        }).join(" "); 
+        
+        // jeśli był cheat + aktywność (opcjonalnie) 
+        if (isCheat) { 
+          emojis += " 😈"; 
+        } 
+      }
 
       cell.innerHTML = `${day}<br>${emojis}`;
       cell.style.cursor = "pointer";
 
       cell.onclick = () => {
-        const dateStr = new Date(currentYear, currentMonth, day).toDateString();
-        openDayModal(dateStr);
+        openDayModal(dateKey); 
       };
-
-      if (isStreakDay(dateKey)) {
-        cell.classList.add("streak-day");
-      }
-
-    } else {
-      cell.innerHTML = `${day}`;
-      cell.style.opacity = "0.5";
-    }
-
+      
+      if (isCheat && (!dayLog || dayLog.entries.length === 0)) { 
+        cell.classList.add("cheat-day"); 
+      } else if (isStreakDay(dateKey)) { 
+        cell.classList.add("streak-day"); 
+      } 
+    } else { 
+      cell.innerHTML = `${day}`; 
+      cell.style.opacity = "0.5"; 
+    } 
+      
     calendar.appendChild(cell);
-  }
+  } 
 }
 
 function renderHistoryList() {
@@ -522,7 +595,7 @@ function isStreakDay(dateStr) {
   return logs.some(l => l.date === prevStr);
 }
 
-  function openDayModal(dateStr) {
+function openDayModal(dateStr) {
   const modal = document.getElementById("dayModal");
   const title = document.getElementById("modal-date");
   const list = document.getElementById("modal-list");
@@ -585,8 +658,10 @@ function isStreakDay(dateStr) {
     localStorage.setItem("logs", JSON.stringify(logs));
 
     syncLogs();
+    updateStreakUI();
     renderCalendar();
     renderHistoryList();
+    updateCheatButton();
     closeModal();
   }
 
@@ -608,6 +683,106 @@ function editCalories(dateStr, index, newCalories) {
   renderHistoryList();
   renderCalendar();
 }
+
+function calculateStreak() { 
+  if (!logs.length && !cheatDays.length) return 0; 
+  
+  const allDays = [ 
+    ...logs.filter(l => l.entries.length > 0).map(l => l.date), 
+    ...cheatDays 
+  ]; 
+  
+  const uniqueDays = [...new Set(allDays)] 
+  .map(d => new Date(d)) 
+  .sort((a, b) => b - a); 
+  
+  if (uniqueDays.length === 0) return 0; 
+  
+  let streak = 0; 
+  let current = new Date(); 
+  current.setHours(0,0,0,0); 
+  
+  for (let i = 0; i < uniqueDays.length; i++) { 
+    const day = new Date(uniqueDays[i]); 
+    day.setHours(0,0,0,0); 
+    
+    const diff = (current - day) / (1000 * 60 * 60 * 24); 
+    
+    if (diff === 0 || diff === 1) { 
+      streak++; 
+      current.setDate(current.getDate() - 1); 
+    } else { 
+      break; 
+    } 
+  } 
+  
+  return streak; 
+} 
+
+function updateStreakUI() { 
+  streak = calculateStreak(); 
+  localStorage.setItem("streak", streak); 
+  streakEl.innerText = streak; 
+} 
+
+function useCheatDay() { 
+  const today = new Date().toDateString(); 
+  
+  // sprawdź czy już użyty dziś 
+  if (cheatDays.includes(today)) { 
+    alert("Już użyłaś cheat day dziś 😅"); 
+    return; 
+  } 
+  
+  // sprawdź czy w tym tygodniu już był cheat 
+  const now = new Date(); 
+  const weekAgo = new Date(); 
+  weekAgo.setDate(now.getDate() - 7); 
+  
+  const usedThisWeek = cheatDays.some(d => { 
+    const date = new Date(d); 
+    return date >= weekAgo; 
+  }); 
+  
+  if (usedThisWeek) { 
+    alert("Masz tylko 1 cheat day na tydzień 😉"); 
+    return; 
+  } 
+  
+  cheatDays.push(today); 
+  localStorage.setItem("cheatDays", JSON.stringify(cheatDays)); 
+  
+  alert("😈 Cheat day aktywowany!"); 
+  
+  updateStreakUI(); 
+  renderCalendar(); 
+  updateCheatButton(); 
+} 
+
+function updateCheatButton() { 
+  const btn = document.querySelector("button[onclick='useCheatDay()']"); 
+  if (!btn) return; 
+  const now = new Date(); 
+  const weekAgo = new Date(); 
+  weekAgo.setDate(now.getDate() - 7); 
+  
+  const usedThisWeek = cheatDays.some(d => { 
+    const date = new Date(d); 
+    return date >= weekAgo; 
+  }); 
+  
+  const todayHasActivity = hasActivityToday(); 
+  
+  // 👉 NOWA LOGIKA: 
+  if (usedThisWeek || todayHasActivity) { 
+    btn.style.display = "none"; 
+  } else { 
+    btn.style.display = "inline-block"; 
+  } 
+} 
+
+updateStreakUI(); 
+updateCheatButton();
 
 </script>
 
