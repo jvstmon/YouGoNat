@@ -600,11 +600,14 @@ function renderCalendar() {
         openDayModal(dateKey); 
       };
       
-      if (isCheat && (!dayLog || dayLog.entries.length === 0)) { 
-        cell.classList.add("cheat-day"); 
-      } else if (isStreakDay(dateKey)) { 
-        cell.classList.add("streak-day"); 
-      } 
+      if (isStreakDay(dateKey)) {
+        cell.classList.add("streak-day");
+      }
+
+      if (isCheat) {
+        cell.classList.add("cheat-day");
+      }
+      
     } else { 
       cell.innerHTML = `${day}`; 
       cell.style.opacity = "0.5"; 
@@ -652,22 +655,35 @@ function renderHistoryList() {
 }
 
 function isStreakDay(dateStr) {
-  const todayStr = new Date().toDateString();
+  const allDays = [
+    ...logs.filter(l => l.entries.length > 0).map(l => l.date),
+    ...cheatDays
+  ];
 
-  if (dateStr === todayStr) {
-    return logs.some(l => l.date === dateStr);
+  const uniqueDays = [...new Set(allDays)]
+    .map(d => new Date(d))
+    .sort((a, b) => b - a);
+
+  if (uniqueDays.length === 0) return false;
+
+  let current = new Date();
+  current.setHours(0,0,0,0);
+
+  for (let i = 0; i < uniqueDays.length; i++) {
+    const day = new Date(uniqueDays[i]);
+    day.setHours(0,0,0,0);
+
+    const diff = (current - day) / (1000 * 60 * 60 * 24);
+
+    if (diff === 0 || diff === 1) {
+      if (day.toDateString() === dateStr) return true;
+      current.setDate(current.getDate() - 1);
+    } else {
+      break;
+    }
   }
 
-  const hasLog = logs.some(l => l.date === dateStr && l.entries.length > 0);
-  if (!hasLog) return false;
-
-  const date = new Date(dateStr);
-  const prevDate = new Date(date);
-  prevDate.setDate(prevDate.getDate() - 1);
-
-  const prevStr = prevDate.toDateString();
-
-  return logs.some(l => l.date === prevStr);
+  return false;
 }
 
 function openDayModal(dateStr) {
