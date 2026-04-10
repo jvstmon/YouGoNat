@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>YOU GO NATALIA!</title>
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="manifest" href="manifest.json">
@@ -53,7 +53,7 @@
 
     button {
       padding: 14px 16px;
-      margin: 8px;
+      margin: 0;
       border: none;
       border-radius: 14px;
       font-size: 16px;
@@ -78,7 +78,7 @@
 
     .mood-grid { 
       display: grid; 
-      grid-template-columns: repeat(4, 1fr); 
+      grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
       gap: 10px; 
       margin-top: 10px; 
       width: 100%; 
@@ -182,6 +182,10 @@
   .cheat-btn span { 
     opacity: 0.9; 
     color: white; 
+  }
+
+  input, textarea {
+    font-size: 16px;
   }
 
   </style>
@@ -607,7 +611,7 @@ function renderCalendar() {
       if (isCheat) {
         cell.classList.add("cheat-day");
       }
-      
+
     } else { 
       cell.innerHTML = `${day}`; 
       cell.style.opacity = "0.5"; 
